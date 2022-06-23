@@ -124,3 +124,127 @@ I’m not sure that how to work these materials, so I will look into detail late
 Then I called this component in the Homepage component like that: `<app-filter></app-filter>`
 
 Now I will create Gamecard component and I will also call it in Homepage.
+
+---
+
+Now I implement the `getGameList()` function in http.servise.ts.
+
+```tsx
+getGameList(
+    ordering:string,
+    search?:string
+    ):
+    Observable<APIResponse<Game>>{
+      let params = new HttpParams().set("ordering", ordering);
+
+      if(search){
+        params = new HttpParams().set("ordering", ordering).set("search", search);
+      }
+      return this.http.get<APIResponse<Game>>(`${env.BASE_URL}/games`,{
+        params:params});
+  }
+```
+
+On the above code, function takes a ordering and search parameter and it returns object that type APIResponse<Game>. I will define these types in Interface soon. We set the params according to wheter there is a search parameter or not. Also we created BASE_URL in environment file.
+
+Now, lets create Interface.
+
+```tsx
+export interface Game {
+  background_image: string;
+  name: string;
+  released: string;
+  metacritic_url: string;
+	.
+	.
+
+}
+.
+.
+
+```
+
+### **Angular Custom Interceptor:**
+
+Interceptors are used to manage to requests.
+
+> [Uygulama içinde yapılan istek ve cevaplarda araya girerek gerekli yönlendirme, log atma ya da gelip giden verilere değer ekleme gibi işlemleri yapabiliriz yani trafiği yönetebiliriz.](https://sametcelikbicak.com/angular-custom-interceptor)
+
+**Here is our HttpErrorsInterceptor.**
+
+```tsx
+import { Injectable } from "@angular/core";
+import {
+  HttpRequest,
+  HttpHandler,
+  HttpEvent,
+  HttpInterceptor,
+} from "@angular/common/http";
+import { Observable, throwError } from "rxjs";
+import { catchError } from "rxjs/operators";
+
+@Injectable()
+export class HttpErrorsInterceptor implements HttpInterceptor {
+  constructor() {}
+
+  intercept(
+    req: HttpRequest<any>,
+    next: HttpHandler
+  ): Observable<HttpEvent<any>> {
+    return next.handle(req).pipe(
+      catchError((err) => {
+        console.log(err);
+        return throwError(() => new Error(err));
+      })
+    );
+  }
+}
+```
+
+### **The `next` object:**
+
+The `next` object represents the next interceptor in the chain of interceptors. The final `next` in the chain is the `[HttpClient](https://angular.io/api/common/http/HttpClient)` backend handler that sends the request to the server and receives the server's response.
+
+Most interceptors call `next.handle()`so that the request flows through to the next interceptor and, eventually, the backend handler.
+
+**Note:**
+
+In the source video, `observableThrowError()` has used for catching errors. But I learned that this function is deprecated so we use `throwError(() => new Error(err))` instead of `observableThrowError()`.
+
+**Here is our HttpHeadersInterceptor**
+
+```tsx
+import { Injectable } from "@angular/core";
+import {
+  HttpRequest,
+  HttpHandler,
+  HttpEvent,
+  HttpInterceptor,
+} from "@angular/common/http";
+import { Observable } from "rxjs";
+
+@Injectable()
+export class HttpHeadersInterceptor implements HttpInterceptor {
+  constructor() {}
+
+  intercept(
+    request: HttpRequest<unknown>,
+    next: HttpHandler
+  ): Observable<HttpEvent<unknown>> {
+    request = request.clone({
+      setHeaders: {
+        "X-RapidAPI-Key": "0bf0d9d33emsh6d0faac8a1b6423p1875ecjsn0c901ee38893",
+        "X-RapidAPI-Host": "rawg-video-games-database.p.rapidapi.com",
+      },
+      setParams: {
+        key: "5753b5c93846486d9fffa637773bf395",
+      },
+    });
+    return next.handle(request);
+  }
+}
+```
+
+> The `clone()`method's hash argument lets you mutate specific properties of the request while copying the others.
+
+We created interceptors. Now we need to insert and import our application. So we need to go to the app.module.ts and we import in providers.
